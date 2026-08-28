@@ -192,6 +192,9 @@ tbody tr:hover { background: var(--bg); }
 .disclaimer dd { margin: 3px 0 0; color: var(--ink-soft); font-size: 13.5px; }
 
 .foot { color: var(--ink-soft); font-size: 12px; padding: 8px 0 32px; text-align: center; }
+.foot a { color: var(--accent); text-decoration: none; }
+.foot a:hover { text-decoration: underline; }
+.foot .dot { margin: 0 6px; opacity: 0.6; }
 
 .hidden { display: none !important; }
 

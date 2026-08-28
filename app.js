@@ -772,7 +772,7 @@ function keyCreationUrl() {
 }
 
 function init() {
-  $('#version').textContent = `Blackjack Tracker v${VERSION} · reads Torn log category ${GAME.category}`;
+  $('#version').textContent = `Blackjack Tracker v${VERSION}`;
   $('#btnCreateKey').href = keyCreationUrl();
   setRate('idle', false);
 
