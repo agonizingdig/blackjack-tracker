@@ -697,10 +697,24 @@ function describeAccess(info) {
   return String(lvl);
 }
 
+// Pre-login the disclaimers are unmissable. Once someone is in and using the
+// tool they have already read them, so they collapse to a footer link.
 function enterDashboard() {
   $('#setup').classList.add('hidden');
   $('#dash').classList.remove('hidden');
   $('#btnForget').classList.remove('hidden');
+  $('#disclaimer').classList.add('hidden');
+  $('#btnDisclaimer').classList.remove('hidden');
+  $('#footDot1').classList.remove('hidden');
+}
+
+function leaveDashboard() {
+  $('#dash').classList.add('hidden');
+  $('#setup').classList.remove('hidden');
+  $('#btnForget').classList.add('hidden');
+  $('#disclaimer').classList.remove('hidden');
+  $('#btnDisclaimer').classList.add('hidden');
+  $('#footDot1').classList.add('hidden');
 }
 
 /* --------------------------------------------------------------------------
@@ -806,10 +820,15 @@ function init() {
     clearStoredKey();
     apiKey = null;
     $('#keyInput').value = '';
-    $('#dash').classList.add('hidden');
-    $('#setup').classList.remove('hidden');
-    $('#btnForget').classList.add('hidden');
+    leaveDashboard();
     showMsg('#keyMsg', 'Key forgotten. Your cached history is still here.', 'ok');
+  });
+
+  $('#btnDisclaimer').addEventListener('click', () => {
+    const el = $('#disclaimer');
+    const wasHidden = el.classList.contains('hidden');
+    el.classList.toggle('hidden');
+    if (wasHidden) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
 
   // History fetching

@@ -195,6 +195,11 @@ tbody tr:hover { background: var(--bg); }
 .foot a { color: var(--accent); text-decoration: none; }
 .foot a:hover { text-decoration: underline; }
 .foot .dot { margin: 0 6px; opacity: 0.6; }
+.linklike {
+  font: inherit; color: var(--accent); background: none; border: 0;
+  padding: 0; cursor: pointer;
+}
+.linklike:hover { text-decoration: underline; }
 
 .hidden { display: none !important; }
 
