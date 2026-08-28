@@ -1,0 +1,11 @@
+# nothing sensitive should ever land here, but be explicit
+*key*.txt
+*token*
+*secret*
+.env
+.env.*
+
+# editor / os
+.DS_Store
+Thumbs.db
+node_modules/

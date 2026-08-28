@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Torn Blackjack Tracker</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <h1>Blackjack Tracker</h1>
+    <div class="topbar-right">
+      <span id="rateBadge" class="badge" title="API calls used in the last minute">idle</span>
+      <button id="btnForget" class="btn btn-ghost hidden">Forget key</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section id="setup" class="card">
+    <h2>Connect your Torn account</h2>
+    <p class="lede">This page reads your own blackjack logs from Torn's official API. It runs entirely in your browser &mdash; there is no server behind it.</p>
+
+    <div class="keyrow">
+      <input id="keyInput" type="text" class="masked" spellcheck="false" autocomplete="off"
+             autocapitalize="off" autocorrect="off" data-lpignore="true" data-form-type="other"
+             data-1p-ignore aria-label="Torn API key" placeholder="Paste your Torn API key">
+      <button id="btnReveal" class="btn btn-ghost" type="button" title="Show or hide">Show</button>
+      <button id="btnSave" class="btn btn-primary" type="button">Save &amp; load</button>
+    </div>
+
+    <label class="check">
+      <input type="checkbox" id="chkRemember" checked>
+      <span>Remember this key in this browser. Untick on a shared computer &mdash; the key is then kept in memory only and forgotten when you close the tab.</span>
+    </label>
+
+    <div id="keyMsg" class="msg hidden"></div>
+
+    <details class="disclose">
+      <summary>I don't have a key yet</summary>
+      <div class="disclose-body">
+        <p>Blackjack history lives in your Torn <strong>logs</strong>, and only two kinds of key can read them:</p>
+        <ul>
+          <li><strong>A Full Access key</strong> &mdash; reads your entire account. Do not use one here.</li>
+          <li><strong>A custom log-only key</strong> &mdash; reads logs and nothing else. Much narrower, and the option this tool is built for.</li>
+        </ul>
+        <p>Torn's settings page only offers four fixed levels, and none of them is "logs only". The only way to create a custom key is a special link.</p>
+
+        <div class="warn">
+          <strong>Read this before clicking.</strong>
+          <p>The link below <em>immediately creates a live API key</em> on your account. There is no confirmation step and you cannot edit it afterwards &mdash; only copy or delete it.</p>
+          <p>The key it creates can read <strong>all of your Torn logs</strong>, not just blackjack. That includes trades, money movements and market activity. It cannot spend your money, move your items, or act in the game &mdash; but it is a detailed history of what you have done.</p>
+          <p>It is still considerably narrower than a Full Access key, which is the only alternative that reaches logs at all. That is the trade-off. You do not have to use this button.</p>
+          <p>You can delete any key at any time from <span class="mono">Settings &rarr; API Keys</span>.</p>
+        </div>
+
+        <a id="btnCreateKey" class="btn btn-warn" target="_blank" rel="noopener noreferrer" href="#">Create a log-only key on Torn</a>
+        <p class="fineprint">Opens Torn in a new tab. Come back and paste the key above.</p>
+      </div>
+    </details>
+  </section>
+
+  <section id="dash" class="hidden">
+
+    <div class="card">
+      <div class="rowbetween">
+        <h2>History</h2>
+        <span id="coverage" class="muted"></span>
+      </div>
+      <p class="lede">Nothing is downloaded until you ask for it. Each fetch only grabs what you don't already have.</p>
+      <div class="btnrow" id="loadRow">
+        <button class="btn" data-days="30">Last 30 days</button>
+        <button class="btn" data-days="90">90 days</button>
+        <button class="btn" data-days="180">6 months</button>
+        <button class="btn" data-days="365">1 year</button>
+      </div>
+      <details class="disclose">
+        <summary>Load older history</summary>
+        <div class="disclose-body">
+          <p class="muted">Going back further than a year is deliberate &mdash; it can take a while and makes a lot of API calls.</p>
+          <div class="daterow">
+            <label>From <input type="date" id="customFrom"></label>
+            <label>To <input type="date" id="customTo"></label>
+            <button id="btnCustom" class="btn">Fetch range</button>
+          </div>
+        </div>
+      </details>
+      <div id="progress" class="progress hidden"><div id="progressBar"></div><span id="progressText"></span></div>
+      <div id="syncMsg" class="msg hidden"></div>
+    </div>
+
+    <div class="card">
+      <div class="rowbetween">
+        <h2>Summary</h2>
+        <div class="segmented" id="rangePick">
+          <button data-range="today" class="on">Today</button>
+          <button data-range="7">7 days</button>
+          <button data-range="30">30 days</button>
+          <button data-range="all">All loaded</button>
+        </div>
+      </div>
+      <div id="stats" class="stats"></div>
+      <div id="tzNote" class="fineprint"></div>
+    </div>
+
+    <div class="card">
+      <h2>Profit over time</h2>
+      <div id="chart" class="chart"></div>
+    </div>
+
+    <div class="card">
+      <div class="rowbetween">
+        <h2>By day</h2>
+        <label class="check inline">
+          <input type="checkbox" id="chkLocal">
+          <span>Use my local time instead of TCT</span>
+        </label>
+      </div>
+      <div class="tablewrap">
+        <table id="dayTable"><thead><tr>
+          <th>Day</th><th class="num">Hands</th><th class="num">W</th><th class="num">L</th>
+          <th class="num">P</th><th class="num">Surr</th><th class="num">Wagered</th><th class="num">Net</th>
+        </tr></thead><tbody></tbody></table>
+      </div>
+    </div>
+
+    <div class="card" id="flagCard">
+      <h2>Things worth knowing</h2>
+      <div id="flags"></div>
+    </div>
+
+    <div class="card">
+      <h2>Your data</h2>
+      <div class="btnrow">
+        <button id="btnCsv" class="btn">Export CSV</button>
+        <button id="btnBackup" class="btn">Backup (JSON)</button>
+        <button id="btnRestore" class="btn">Restore backup</button>
+        <button id="btnWipe" class="btn btn-danger">Delete cached history</button>
+      </div>
+      <input type="file" id="restoreFile" accept="application/json" class="hidden">
+      <p class="fineprint">Cached history lives in this browser only. Clearing your browsing data erases it &mdash; a backup saves you re-downloading.</p>
+    </div>
+
+  </section>
+
+  <section class="card disclaimer">
+    <h2>How this tool behaves</h2>
+    <dl>
+      <dt>It only reads.</dt>
+      <dd>It calls Torn's official log endpoint to read your own history. It does not play hands, place bets, or take any action in the game. The endpoint it uses is read-only &mdash; it has no ability to act on your account.</dd>
+
+      <dt>It stays under the rate limit.</dt>
+      <dd>Torn permits 100 API calls per minute. This page throttles itself to <strong>60</strong> and shows its current rate in the top corner, so it stays well clear of the ceiling.</dd>
+
+      <dt>Your key does not leave your browser.</dt>
+      <dd>This is a static page with no backend. Your key is sent to <span class="mono">api.torn.com</span> and nowhere else. Nothing is logged, collected or transmitted to the person who made this.</dd>
+
+      <dt>Nothing downloads on its own.</dt>
+      <dd>History is only fetched when you press a button, and only for the range you ask for.</dd>
+
+      <dt>Judge it against the rules yourself.</dt>
+      <dd>The above describes exactly what this page does. It is not a claim about what Torn's rules permit &mdash; that is yours to check, and the rules can change.</dd>
+    </dl>
+  </section>
+
+  <footer class="foot">
+    <span id="version"></span>
+  </footer>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>
