@@ -4,16 +4,21 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
+<meta name="color-scheme" content="light dark">
 <title>Torn Blackjack Tracker</title>
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=0.2.0">
 </head>
 <body>
 
 <header class="topbar">
   <div class="wrap">
-    <h1>Blackjack Tracker</h1>
+    <div class="brand">
+      <h1>Blackjack Tracker</h1>
+      <span class="suits" aria-hidden="true"><span class="b">&spades;</span><span class="r">&hearts;</span><span class="r">&diams;</span><span class="b">&clubs;</span></span>
+    </div>
     <div class="topbar-right">
       <span id="rateBadge" class="badge" title="API calls used in the last minute">idle</span>
+      <button id="btnTheme" class="iconbtn" type="button" title="Switch between automatic, light and dark">Auto</button>
       <button id="btnForget" class="btn btn-ghost hidden">Forget key</button>
     </div>
   </div>
@@ -21,7 +26,7 @@
 
 <main class="wrap">
 
-  <section id="setup" class="card">
+  <section id="setup" class="card" data-pip="&spades;">
     <h2>Connect your Torn account</h2>
     <p class="lede">This page reads your own blackjack logs from Torn's official API. It runs entirely in your browser &mdash; there is no server behind it.</p>
 
@@ -66,7 +71,7 @@
 
   <section id="dash" class="hidden">
 
-    <div class="card">
+    <div class="card" data-pip="&hearts;">
       <div class="rowbetween">
         <h2>History</h2>
         <span id="coverage" class="muted"></span>
@@ -93,7 +98,7 @@
       <div id="syncMsg" class="msg hidden"></div>
     </div>
 
-    <div class="card">
+    <div class="card" data-pip="&diams;">
       <div class="rowbetween">
         <h2>Summary</h2>
         <div class="segmented" id="rangePick">
@@ -103,16 +108,18 @@
           <button data-range="all">All loaded</button>
         </div>
       </div>
+      <div id="hero" class="hero"></div>
+      <div id="wlp" class="wlp"></div>
       <div id="stats" class="stats"></div>
       <div id="tzNote" class="fineprint"></div>
     </div>
 
-    <div class="card">
+    <div class="card" data-pip="&clubs;">
       <h2>Profit over time</h2>
       <div id="chart" class="chart"></div>
     </div>
 
-    <div class="card">
+    <div class="card" data-pip="&spades;">
       <div class="rowbetween">
         <h2>By day</h2>
         <label class="check inline">
@@ -128,12 +135,12 @@
       </div>
     </div>
 
-    <div class="card" id="flagCard">
+    <div class="card" id="flagCard" data-pip="&hearts;">
       <h2>Things worth knowing</h2>
       <div id="flags"></div>
     </div>
 
-    <div class="card">
+    <div class="card" data-pip="&clubs;">
       <h2>Your data</h2>
       <div class="btnrow">
         <button id="btnCsv" class="btn">Export CSV</button>
@@ -147,7 +154,7 @@
 
   </section>
 
-  <section id="disclaimer" class="card disclaimer">
+  <section id="disclaimer" class="card disclaimer" data-pip="&diams;">
     <h2>How this tool behaves</h2>
     <dl>
       <dt>It only reads.</dt>
@@ -176,6 +183,6 @@
   </footer>
 </main>
 
-<script src="app.js"></script>
+<script src="app.js?v=0.2.0"></script>
 </body>
 </html>

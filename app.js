@@ -6,7 +6,7 @@
    only to api.torn.com.
    ========================================================================== */
 
-const VERSION = '0.1.0';
+const VERSION = '0.2.0';
 
 /* --------------------------------------------------------------------------
    GAME CONFIG
@@ -213,6 +213,31 @@ function missingParts(want, covered) {
     gaps = next;
   }
   return gaps.filter((g) => g[1] > g[0]);
+}
+
+/* --------------------------------------------------------------------------
+   THEME
+   Three states. "auto" removes the attribute entirely so the OS preference
+   applies through the media query; the other two pin it.
+   -------------------------------------------------------------------------- */
+
+const THEME_STORAGE = 'tbt.theme';
+const THEME_ORDER = ['auto', 'light', 'dark'];
+const THEME_LABEL = { auto: 'Auto', light: 'Light', dark: 'Dark' };
+
+function applyTheme(mode) {
+  if (mode === 'auto') document.documentElement.removeAttribute('data-theme');
+  else document.documentElement.setAttribute('data-theme', mode);
+  const btn = document.getElementById('btnTheme');
+  if (btn) btn.textContent = THEME_LABEL[mode];
+  try { localStorage.setItem(THEME_STORAGE, mode); } catch (e) { /* private mode */ }
+}
+
+function currentTheme() {
+  try {
+    const v = localStorage.getItem(THEME_STORAGE);
+    return THEME_ORDER.includes(v) ? v : 'auto';
+  } catch (e) { return 'auto'; }
 }
 
 /* --------------------------------------------------------------------------
@@ -500,19 +525,47 @@ function renderStats() {
   const inRange = state.deals.filter((d) => d.ts >= from && d.ts <= to);
   const s = aggregate(inRange);
 
+  // Net profit is the number people actually came for, so it gets to be the
+  // headline rather than one tile among eight.
+  $('#hero').innerHTML = `
+    <div>
+      <div class="cap">Net profit</div>
+      <div class="figure ${signClass(s.net)}">${escapeHtml(fmtShort(s.net))}</div>
+    </div>
+    <div class="exact">${escapeHtml(fmtFull(s.net))} over ${s.hands.toLocaleString()} hand${s.hands === 1 ? '' : 's'}</div>`;
+
+  // Outcome mix as one bar. Four counts side by side are harder to read at a
+  // glance than their proportions.
+  const total = s.win + s.loss + s.push + s.surrender;
+  if (total) {
+    const pct = (n) => (n / total) * 100;
+    const key = [
+      ['w', 'Won', s.win, 'var(--win)'],
+      ['l', 'Lost', s.loss, 'var(--loss)'],
+      ['p', 'Pushed', s.push, 'var(--push)'],
+      ['s', 'Surrendered', s.surrender, 'var(--gold)']
+    ];
+    $('#wlp').innerHTML = `
+      <div class="wlpbar" role="img" aria-label="${s.win} won, ${s.loss} lost, ${s.push} pushed, ${s.surrender} surrendered">
+        ${key.map(([c, , n]) => n ? `<span class="${c}" style="width:${pct(n).toFixed(2)}%"></span>` : '').join('')}
+      </div>
+      <div class="wlpkey">
+        ${key.map(([, label, n, col]) =>
+          `<span><i class="dotmark" style="background:${col}"></i>${label} <b>${n.toLocaleString()}</b></span>`).join('')}
+      </div>`;
+  } else {
+    $('#wlp').innerHTML = '<p class="muted">No completed hands in this range.</p>';
+  }
+
   const tiles = [
-    { k: 'Net profit', v: fmtShort(s.net), cls: signClass(s.net), sub: fmtFull(s.net) },
-    { k: 'Hands', v: s.hands.toLocaleString(), sub: `${s.deals.toLocaleString()} deals` },
-    { k: 'Won', v: s.win.toLocaleString(),
-      sub: s.winRate === null ? 'no decided hands' : `${(s.winRate * 100).toFixed(1)}% of decided` },
-    { k: 'Lost', v: s.loss.toLocaleString() },
-    { k: 'Pushed', v: s.push.toLocaleString(),
-      sub: s.surrender ? `${s.surrender} surrendered` : '' },
+    { k: 'Deals', v: s.deals.toLocaleString(), sub: `${s.hands.toLocaleString()} hands` },
+    { k: 'Win rate', v: s.winRate === null ? '—' : `${(s.winRate * 100).toFixed(1)}%`,
+      sub: 'of decided hands' },
     { k: 'Wagered', v: fmtShort(s.wagered), sub: fmtFull(s.wagered) },
     { k: 'Return', v: s.edge === null ? '—' : `${(s.edge * 100).toFixed(2)}%`,
-      cls: s.edge === null ? '' : signClass(s.edge), sub: 'net vs total wagered' },
-    { k: 'Best deal', v: s.best ? fmtShort(s.best.net) : '—', cls: 'pos',
-      sub: s.worst ? `worst ${fmtShort(s.worst.net)}` : '' }
+      cls: s.edge === null ? '' : signClass(s.edge), sub: 'net vs wagered' },
+    { k: 'Best deal', v: s.best ? fmtShort(s.best.net) : '—', cls: s.best ? 'pos' : '' },
+    { k: 'Worst deal', v: s.worst ? fmtShort(s.worst.net) : '—', cls: s.worst ? 'neg' : '' }
   ];
 
   $('#stats').innerHTML = tiles.map((t) => `
@@ -542,22 +595,37 @@ function renderChart() {
   const max = Math.max(0, ...ys);
   const range = (max - min) || 1;
 
-  const W = 900, H = 200, PADX = 8, PADY = 14;
-  const x = (i) => PADX + (i * (W - PADX * 2)) / Math.max(1, pts.length - 1);
+  const W = 900, H = 220, PADL = 56, PADR = 10, PADY = 16;
+  const x = (i) => PADL + (i * (W - PADL - PADR)) / Math.max(1, pts.length - 1);
   const y = (v) => PADY + (1 - (v - min) / range) * (H - PADY * 2);
 
   const line = pts.map((p, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(p.y).toFixed(1)}`).join('');
   const area = `${line}L${x(pts.length - 1).toFixed(1)},${y(0).toFixed(1)}L${x(0).toFixed(1)},${y(0).toFixed(1)}Z`;
   const stroke = run >= 0 ? 'var(--win)' : 'var(--loss)';
 
+  // Four horizontal guides so a reader can judge magnitude, not just shape.
+  const ticks = [];
+  for (let i = 0; i <= 3; i++) {
+    const v = min + (range * i) / 3;
+    ticks.push(`<line class="grid" x1="${PADL}" x2="${W - PADR}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}"/>
+      <text class="lbl" x="${PADL - 8}" y="${(y(v) + 3.5).toFixed(1)}" text-anchor="end">${escapeHtml(fmtShort(v))}</text>`);
+  }
+
   box.innerHTML = `
-    <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img"
-         aria-label="Cumulative profit, ${escapeHtml(pts[0].day)} to ${escapeHtml(pts[pts.length - 1].day)}">
-      <line x1="${PADX}" x2="${W - PADX}" y1="${y(0).toFixed(1)}" y2="${y(0).toFixed(1)}"
-            stroke="var(--line)" stroke-width="1"/>
-      <path d="${area}" fill="${stroke}" opacity="0.10"/>
+    <svg viewBox="0 0 ${W} ${H}" role="img"
+         aria-label="Cumulative profit from ${escapeHtml(pts[0].day)} to ${escapeHtml(pts[pts.length - 1].day)}, ending at ${escapeHtml(fmtFull(run))}">
+      <defs>
+        <linearGradient id="fillGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="${stroke}" stop-opacity="0.28"/>
+          <stop offset="100%" stop-color="${stroke}" stop-opacity="0.02"/>
+        </linearGradient>
+      </defs>
+      ${ticks.join('')}
+      ${(min < 0 && max > 0) ? `<line class="zero" x1="${PADL}" x2="${W - PADR}" y1="${y(0).toFixed(1)}" y2="${y(0).toFixed(1)}"/>` : ''}
+      <path d="${area}" fill="url(#fillGrad)"/>
       <path d="${line}" fill="none" stroke="${stroke}" stroke-width="2"
             stroke-linejoin="round" stroke-linecap="round"/>
+      <circle cx="${x(pts.length - 1).toFixed(1)}" cy="${y(run).toFixed(1)}" r="3.5" fill="${stroke}"/>
     </svg>
     <p class="fineprint">${escapeHtml(pts[0].day)} to ${escapeHtml(pts[pts.length - 1].day)} &mdash;
       cumulative net ${escapeHtml(fmtFull(run))} across the loaded history.</p>`;
@@ -789,6 +857,13 @@ function init() {
   $('#version').textContent = `Blackjack Tracker v${VERSION}`;
   $('#btnCreateKey').href = keyCreationUrl();
   setRate('idle', false);
+
+  applyTheme(currentTheme());
+  $('#btnTheme').addEventListener('click', () => {
+    const next = THEME_ORDER[(THEME_ORDER.indexOf(currentTheme()) + 1) % THEME_ORDER.length];
+    applyTheme(next);
+    renderChart();   // the chart bakes theme colours into its markup
+  });
 
   // Key entry
   $('#btnReveal').addEventListener('click', () => {
