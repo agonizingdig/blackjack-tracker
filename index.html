@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex">
 <meta name="color-scheme" content="light dark">
 <title>Torn Blackjack Tracker</title>
-<link rel="stylesheet" href="style.css?v=0.2.0">
+<link rel="stylesheet" href="style.css?v=0.3.0">
 </head>
 <body>
 
@@ -108,6 +108,18 @@
           <button data-range="all">All loaded</button>
         </div>
       </div>
+      <div class="filterrow" id="dowPick">
+        <span class="flabel">Weekdays</span>
+        <button data-dow="1">Mon</button>
+        <button data-dow="2">Tue</button>
+        <button data-dow="3">Wed</button>
+        <button data-dow="4">Thu</button>
+        <button data-dow="5">Fri</button>
+        <button data-dow="6">Sat</button>
+        <button data-dow="0">Sun</button>
+        <button data-dow="all" class="fall">All</button>
+      </div>
+      <p id="dowHint" class="filterhint hidden"></p>
       <div id="hero" class="hero"></div>
       <div id="wlp" class="wlp"></div>
       <div id="stats" class="stats"></div>
@@ -183,6 +195,6 @@
   </footer>
 </main>
 
-<script src="app.js?v=0.2.0"></script>
+<script src="app.js?v=0.3.0"></script>
 </body>
 </html>

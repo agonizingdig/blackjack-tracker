@@ -6,7 +6,7 @@
    only to api.torn.com.
    ========================================================================== */
 
-const VERSION = '0.2.0';
+const VERSION = '0.3.0';
 
 /* --------------------------------------------------------------------------
    GAME CONFIG
@@ -474,14 +474,41 @@ function groupByDay(deals, useLocal) {
    UI STATE
    -------------------------------------------------------------------------- */
 
+const DOW_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const ALL_DOW = [0, 1, 2, 3, 4, 5, 6];
+
 const state = {
   deals: [],
   unknownTypes: [],
   orphans: 0,
   range: 'today',
   useLocal: false,
+  dow: new Set(ALL_DOW),
   busy: false
 };
+
+// Which weekday a hand fell on, honouring the TCT/local toggle so the filter
+// agrees with the day boundaries used everywhere else.
+function dowOf(ts, useLocal) {
+  const d = new Date(ts * 1000);
+  return useLocal ? d.getDay() : d.getUTCDay();
+}
+
+// Every view below the filter row works from this, so the weekday filter
+// applies to the summary, the chart and the table alike.
+function visibleDeals() {
+  if (state.dow.size === 7) return state.deals;
+  return state.deals.filter((d) => state.dow.has(dowOf(d.ts, state.useLocal)));
+}
+
+function dowSummary() {
+  if (state.dow.size === 7) return null;
+  if (state.dow.size === 0) return 'none';
+  const picked = ALL_DOW.filter((d) => state.dow.has(d));
+  // Monday-first reads better than the 0=Sunday index order.
+  const ordered = [1, 2, 3, 4, 5, 6, 0].filter((d) => picked.includes(d));
+  return ordered.map((d) => DOW_NAMES[d] + 's').join(', ');
+}
 
 function setRate(text, busy) {
   const el = $('#rateBadge');
@@ -520,10 +547,30 @@ function rangeBounds() {
   return [now - Number(state.range) * DAY, now];
 }
 
+function renderDowChips() {
+  const all = state.dow.size === 7;
+  $$('#dowPick button').forEach((b) => {
+    if (b.dataset.dow === 'all') b.classList.toggle('on', all);
+    else b.classList.toggle('on', !all && state.dow.has(Number(b.dataset.dow)));
+  });
+}
+
 function renderStats() {
   const [from, to] = rangeBounds();
-  const inRange = state.deals.filter((d) => d.ts >= from && d.ts <= to);
+  const inRange = visibleDeals().filter((d) => d.ts >= from && d.ts <= to);
   const s = aggregate(inRange);
+
+  const dowNote = dowSummary();
+  const hint = $('#dowHint');
+  if (dowNote === 'none') {
+    hint.textContent = 'No weekdays selected, so nothing is shown. Press All to bring everything back.';
+    hint.classList.remove('hidden');
+  } else if (dowNote) {
+    hint.textContent = `Showing ${dowNote} only — this applies to the chart and the day table too.`;
+    hint.classList.remove('hidden');
+  } else {
+    hint.classList.add('hidden');
+  }
 
   // Net profit is the number people actually came for, so it gets to be the
   // headline rather than one tile among eight.
@@ -581,10 +628,12 @@ function renderStats() {
 }
 
 function renderChart() {
-  const days = groupByDay(state.deals, state.useLocal).slice().reverse();
+  const days = groupByDay(visibleDeals(), state.useLocal).slice().reverse();
   const box = $('#chart');
   if (days.length < 2) {
-    box.innerHTML = '<p class="muted">Load a few days of history to see a trend.</p>';
+    box.innerHTML = days.length
+      ? '<p class="muted">Only one day matches. Widen the filter to see a trend.</p>'
+      : '<p class="muted">Load a few days of history to see a trend.</p>';
     return;
   }
 
@@ -632,10 +681,12 @@ function renderChart() {
 }
 
 function renderDays() {
-  const rows = groupByDay(state.deals, state.useLocal);
+  const rows = groupByDay(visibleDeals(), state.useLocal);
   const body = $('#dayTable tbody');
   if (!rows.length) {
-    body.innerHTML = '<tr><td colspan="8" class="muted">No completed hands loaded yet.</td></tr>';
+    body.innerHTML = `<tr><td colspan="8" class="muted">${
+      state.dow.size < 7 ? 'No hands match the weekday filter.' : 'No completed hands loaded yet.'
+    }</td></tr>`;
     return;
   }
   body.innerHTML = rows.map((r) => `
@@ -800,13 +851,17 @@ function download(filename, text, mime) {
 }
 
 function exportCsv() {
-  const head = ['date_tct', 'timestamp', 'opening_bet', 'wagered', 'returned',
-    'net', 'outcomes', 'split', 'doubled', 'insurance_win'];
+  // Exports everything loaded, not the current filter — a data export should
+  // be the whole dataset. `weekday` is included so it can be filtered in a
+  // spreadsheet without recomputing it.
+  const head = ['date_tct', 'weekday_tct', 'timestamp', 'opening_bet', 'wagered',
+    'returned', 'net', 'outcomes', 'split', 'doubled', 'insurance_win'];
   const lines = [head.join(',')];
   for (const d of state.deals) {
     if (!d.complete) continue;
     lines.push([
-      dayKey(d.ts, false), d.ts, d.openingBet, d.moneyOut, d.moneyIn, d.net,
+      dayKey(d.ts, false), DOW_NAMES[dowOf(d.ts, false)], d.ts, d.openingBet,
+      d.moneyOut, d.moneyIn, d.net,
       `"${d.outcomes.join(' ')}"`, d.splits > 0 ? 1 : 0, d.doubled ? 1 : 0,
       d.insuranceWin ? 1 : 0
     ].join(','));
@@ -933,6 +988,25 @@ function init() {
       renderStats();
     });
   });
+
+  $$('#dowPick button').forEach((b) => {
+    b.addEventListener('click', () => {
+      if (b.dataset.dow === 'all') {
+        state.dow = new Set(ALL_DOW);
+      } else {
+        const d = Number(b.dataset.dow);
+        // "All" really means "no filter", so the first click picks a day
+        // rather than removing one -- clicking Mon should show Mondays, not
+        // hide them. After that the chips behave as ordinary toggles.
+        if (state.dow.size === 7) state.dow = new Set([d]);
+        else if (state.dow.has(d)) state.dow.delete(d);
+        else state.dow.add(d);
+      }
+      renderDowChips();
+      renderStats(); renderChart(); renderDays();
+    });
+  });
+  renderDowChips();
 
   $('#chkLocal').addEventListener('change', (e) => {
     state.useLocal = e.target.checked;
